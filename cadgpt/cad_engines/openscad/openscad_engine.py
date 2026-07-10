@@ -29,7 +29,25 @@ class OpenSCADEngine(BaseCADEngine):
             **kwargs: Additional configuration
         """
         super().__init__(output_dir=output_dir, **kwargs)
-        self.openscad_path = openscad_path or self._find_openscad()
+        
+        # FORZAR RUTA ESPECÍFICA DEL USUARIO
+        user_openscad_path = r"C:\Program Files (x86)\OpenSCAD\openscad.exe"
+        
+        if openscad_path:
+            self.openscad_path = openscad_path
+        elif os.path.exists(user_openscad_path):
+            self.openscad_path = user_openscad_path
+            print(f"[OK] OpenSCAD encontrado en: {user_openscad_path}")
+        else:
+            self.openscad_path = self._find_openscad()
+        
+        # Verificación final de disponibilidad
+        if self.openscad_path and os.path.exists(self.openscad_path):
+            self.is_available = True
+            print(f"[OK] Motor OpenSCAD disponible: {self.openscad_path}")
+        else:
+            self.is_available = False
+            print(f"[ERROR] Motor OpenSCAD NO disponible. Ruta configurada: {self.openscad_path}")
     
     def _find_openscad(self) -> Optional[str]:
         """Try to find OpenSCAD executable in system PATH or config file."""
