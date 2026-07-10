@@ -120,7 +120,10 @@ class AgentOrchestrator:
         parsed = self._parse_command(prompt)
         
         # Generate code using appropriate engine
-        from ...cad_engines import create_engine
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from cad_engines import create_engine
         cad_engine = create_engine(engine)
         
         # Generate code
@@ -209,12 +212,26 @@ class AgentOrchestrator:
         elif any(word in prompt_lower for word in ["elimina", "borra"]):
             action = "delete"
         
-        # Detect shape
+        # Detect shape - check for specific shapes first before defaulting to cube
         shape = "cube"  # default
-        for shape_name in self.shape_parsers.keys():
+        # Priority order: check more specific shapes first
+        priority_shapes = ["torus", "cylinder", "sphere", "cone", "pyramid", "cuboid", "cube", "box"]
+        for shape_name in priority_shapes:
             if shape_name in prompt_lower:
                 shape = shape_name
                 break
+        
+        # Also check Spanish aliases
+        if "esfera" in prompt_lower or "ball" in prompt_lower:
+            shape = "sphere"
+        elif "cilindro" in prompt_lower:
+            shape = "cylinder"
+        elif "cono" in prompt_lower:
+            shape = "cone"
+        elif "piramide" in prompt_lower or "pirámide" in prompt_lower:
+            shape = "pyramid"
+        elif "toroide" in prompt_lower or "dona" in prompt_lower or "doughnut" in prompt_lower:
+            shape = "torus"
         
         # Detect operation
         operation = None

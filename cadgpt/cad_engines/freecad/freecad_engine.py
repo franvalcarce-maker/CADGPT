@@ -38,7 +38,7 @@ class FreeCADEngine(BaseCADEngine):
     def generate_code(
         self,
         shape: str,
-        parameters: Dict[str, Any],
+        parameters: Optional[Dict[str, Any]] = None,
         operation: Optional[str] = None,
         **kwargs
     ) -> str:
@@ -53,6 +53,9 @@ class FreeCADEngine(BaseCADEngine):
         Returns:
             FreeCAD Python script string
         """
+        if parameters is None:
+            parameters = {}
+            
         shape_lower = shape.lower()
         
         # Build script header
