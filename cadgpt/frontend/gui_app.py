@@ -390,8 +390,8 @@ class CadGPTApp(ctk.CTk):
             
             # Inicializar orquestador si es necesario
             if not self.orchestrator:
-                llm = LocalLLM(model="local")  # Usar LLM local o mock
-                self.orchestrator = AgentOrchestrator(llm=llm, memory=self.session_memory)
+                # El orquestador crea su propia memoria interna
+                self.orchestrator = AgentOrchestrator(default_engine=self.selected_engine.lower())
             
             # Seleccionar motor
             engine = self.engines.get(self.selected_engine)
