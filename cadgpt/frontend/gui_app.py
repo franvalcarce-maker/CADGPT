@@ -398,14 +398,14 @@ class CadGPTApp(ctk.CTk):
             if not engine:
                 raise ValueError(f"Motor {self.selected_engine} no disponible")
             
-            # Generar código CAD
+            # Generar código CAD usando el método generate_from_text
             self._add_message_to_chat(f"Generando código {self.selected_engine}...", "system")
             
             # Usar el parser del motor para interpretar el mensaje
-            code_result = engine.generate_code(message)
+            code_result = engine.generate_from_text(message)
             
-            if not code_result.success:
-                raise ValueError(f"Error al generar código: {code_result.error}")
+            if not code_result.is_valid:
+                raise ValueError(f"Error al generar código: {code_result.report}")
             
             # Mostrar código generado
             code_preview = code_result.code[:500] + "..." if len(code_result.code) > 500 else code_result.code
