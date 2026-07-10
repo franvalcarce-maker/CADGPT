@@ -13,8 +13,10 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Agregar el path del proyecto
-sys.path.insert(0, str(Path(__file__).parent))
+# Agregar el path del proyecto (raíz de cadgpt)
+current_dir = Path(__file__).parent
+project_root = current_dir.parent
+sys.path.insert(0, str(project_root))
 
 from cad_engines import create_engine
 from core.orchestration.agent_orchestrator import AgentOrchestrator
