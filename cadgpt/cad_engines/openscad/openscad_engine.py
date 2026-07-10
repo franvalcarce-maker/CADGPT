@@ -340,7 +340,7 @@ square([{base_size}, {base_size}], center=true);'''
         """Get list of supported export formats."""
         return ["stl", "off", "dxf", "svg", "png"]
     
-    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> CodeValidationResult:
         """
         Exporta el código OpenSCAD a un archivo físico.
         
@@ -350,7 +350,7 @@ square([{base_size}, {base_size}], center=true);'''
             format: Formato de exportación ('scad' o 'stl').
             
         Returns:
-            True si éxito, False si fallo.
+            CodeValidationResult con el estado de la operación.
         """
         import os
         import subprocess
@@ -372,18 +372,31 @@ square([{base_size}, {base_size}], center=true);'''
             with open(temp_scad, 'w', encoding='utf-8') as f:
                 f.write(code)
             
-            print(f"[OpenSCAD] Código guardado en: {temp_scad}")
+            msg = f"Código guardado en: {temp_scad}"
+            print(f"[OpenSCAD] {msg}")
             
-            # Si solo queríamos el .scad, terminamos aquí
+            # Si solo queríamos el .scad, terminamos aquí con éxito
             if file_ext == '.scad':
-                return True
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg,
+                    code=code,
+                    output_file=temp_scad
+                )
             
             # 2. Intentar compilar a STL/OBJ/etc usando openscad
             if not self.openscad_path or not os.path.exists(self.openscad_path):
-                print("[OpenSCAD] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .scad")
-                print("[OpenSCAD] Para generar STL, instala OpenSCAD y configura la ruta.")
-                # Devolvemos True porque el .scad se generó correctamente
-                return True 
+                msg_warning = "Ejecutable no encontrado. Solo se generó el archivo .scad. Para generar STL, instala OpenSCAD."
+                print(f"[OpenSCAD] Advertencia: {msg_warning}")
+                # Devolvemos éxito parcial porque el .scad se generó correctamente
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_warning,
+                    code=code,
+                    output_file=temp_scad
+                )
             
             # Comando de exportación: openscad -o output.stl input.scad
             cmd = [
@@ -402,14 +415,43 @@ square([{base_size}, {base_size}], center=true);'''
             )
             
             if result.returncode == 0 and os.path.exists(output_path):
-                print(f"[OpenSCAD] Exportación exitosa a: {output_path}")
-                return True
+                msg_success = f"Exportación exitosa a: {output_path}"
+                print(f"[OpenSCAD] {msg_success}")
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_success,
+                    code=code,
+                    output_file=output_path
+                )
             else:
+                error_msg = f"Error en compilación: {result.stderr}" if result.stderr else "OpenSCAD no generó el archivo de salida"
                 if result.stderr:
-                    print(f"[OpenSCAD] Error en compilación: {result.stderr}")
-                # Aún devolvemos True porque el .scad se generó
-                return True
+                    print(f"[OpenSCAD] {error_msg}")
+                # Aún devolvemos éxito parcial porque el .scad existe
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=f"{error_msg}. El archivo .scad se guardó correctamente.",
+                    code=code,
+                    output_file=temp_scad
+                )
                 
+        except subprocess.TimeoutExpired:
+            error_msg = "Tiempo de espera agotado al ejecutar OpenSCAD."
+            print(f"[OpenSCAD] Error: {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )
         except Exception as e:
-            print(f"[OpenSCAD] Excepción al exportar: {str(e)}")
-            return False
+            error_msg = f"Error crítico: {str(e)}"
+            print(f"[OpenSCAD] {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )

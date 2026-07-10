@@ -15,13 +15,16 @@ class CodeValidationResult:
     """Result of code validation."""
     
     is_valid: bool
-    report: str
+    report: str = ""
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     syntax_valid: bool = True
     geometry_valid: bool = True
     topology_valid: bool = True
     code: str = ""  # Added to store generated code
+    success: bool = True  # Alias for is_valid for compatibility
+    output_file: Optional[str] = None  # Path to generated file
+    message: str = ""  # Human-readable message
 
 
 @dataclass

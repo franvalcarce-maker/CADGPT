@@ -445,7 +445,7 @@ else:
         """Get list of supported export formats."""
         return ["stl", "obj", "fbx", "gltf", "dae", "ply", "svg", "png"]
     
-    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> CodeValidationResult:
         """
         Exporta el código Blender Python a un archivo físico.
         
@@ -455,7 +455,7 @@ else:
             format: Formato de exportación ('py' o 'stl', 'obj', etc.).
             
         Returns:
-            True si éxito, False si fallo.
+            CodeValidationResult con el estado de la operación.
         """
         import os
         import subprocess
@@ -477,17 +477,30 @@ else:
             with open(temp_py, 'w', encoding='utf-8') as f:
                 f.write(code)
             
-            print(f"[Blender] Script guardado en: {temp_py}")
+            msg = f"Script guardado en: {temp_py}"
+            print(f"[Blender] {msg}")
             
             # Si solo queríamos el .py, terminamos aquí
             if file_ext == '.py':
-                return True
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg,
+                    code=code,
+                    output_file=temp_py
+                )
             
             # 2. Intentar ejecutar con Blender para exportar
             if not self.blender_path or not os.path.exists(self.blender_path):
-                print("[Blender] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .py")
-                print("[Blender] Para generar STL/OBJ, instala Blender y configura la ruta.")
-                return True
+                msg_warning = "Ejecutable no encontrado. Solo se generó el archivo .py. Para generar STL/OBJ, instala Blender."
+                print(f"[Blender] Advertencia: {msg_warning}")
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_warning,
+                    code=code,
+                    output_file=temp_py
+                )
             
             # Modificar el código para agregar exportación al final
             export_cmd = f'\n# Export\nbpy.ops.export_mesh.stl(filepath="{output_path}")\n'
@@ -515,14 +528,43 @@ else:
             )
             
             if result.returncode == 0 and os.path.exists(output_path):
-                print(f"[Blender] Exportación exitosa a: {output_path}")
-                return True
+                msg_success = f"Exportación exitosa a: {output_path}"
+                print(f"[Blender] {msg_success}")
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_success,
+                    code=code,
+                    output_file=output_path
+                )
             else:
+                error_msg = f"Error: {result.stderr}" if result.stderr else "Blender no generó el archivo de salida"
                 if result.stderr:
-                    print(f"[Blender] Error: {result.stderr}")
-                # Aún devolvemos True porque el .py se generó
-                return True
+                    print(f"[Blender] {error_msg}")
+                # Aún devolvemos éxito parcial porque el .py existe
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=f"{error_msg}. El script .py se guardó correctamente.",
+                    code=code,
+                    output_file=temp_py
+                )
                 
+        except subprocess.TimeoutExpired:
+            error_msg = "Tiempo de espera agotado al ejecutar Blender."
+            print(f"[Blender] Error: {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )
         except Exception as e:
-            print(f"[Blender] Excepción al exportar: {str(e)}")
-            return False
+            error_msg = f"Excepción al exportar: {str(e)}"
+            print(f"[Blender] {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )

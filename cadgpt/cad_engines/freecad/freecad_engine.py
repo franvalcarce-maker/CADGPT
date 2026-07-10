@@ -421,7 +421,7 @@ Part.export([FreeCAD.ActiveDocument.ActiveObject.Label], r"{filepath}")
         """Get list of supported export formats."""
         return ["step", "stl", "obj", "dxf", "svg", "ifc", "fcstd"]
     
-    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> CodeValidationResult:
         """
         Exporta el código FreeCAD Python a un archivo físico.
         
@@ -431,7 +431,7 @@ Part.export([FreeCAD.ActiveDocument.ActiveObject.Label], r"{filepath}")
             format: Formato de exportación ('py' o 'step', 'stl', etc.).
             
         Returns:
-            True si éxito, False si fallo.
+            CodeValidationResult con el estado de la operación.
         """
         import os
         import subprocess
@@ -453,17 +453,30 @@ Part.export([FreeCAD.ActiveDocument.ActiveObject.Label], r"{filepath}")
             with open(temp_py, 'w', encoding='utf-8') as f:
                 f.write(code)
             
-            print(f"[FreeCAD] Script guardado en: {temp_py}")
+            msg = f"Script guardado en: {temp_py}"
+            print(f"[FreeCAD] {msg}")
             
             # Si solo queríamos el .py, terminamos aquí
             if file_ext == '.py':
-                return True
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg,
+                    code=code,
+                    output_file=temp_py
+                )
             
             # 2. Intentar ejecutar con FreeCAD para exportar
             if not self.freecad_path or not os.path.exists(self.freecad_path):
-                print("[FreeCAD] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .py")
-                print("[FreeCAD] Para generar STEP/STL, instala FreeCAD y configura la ruta.")
-                return True
+                msg_warning = "Ejecutable no encontrado. Solo se generó el archivo .py. Para generar STEP/STL, instala FreeCAD."
+                print(f"[FreeCAD] Advertencia: {msg_warning}")
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_warning,
+                    code=code,
+                    output_file=temp_py
+                )
             
             # Modificar el código para agregar exportación al final
             # Detectar formato por extensión
@@ -509,14 +522,43 @@ if doc and len(doc.Objects) > 0:
             )
             
             if result.returncode == 0 and os.path.exists(output_path):
-                print(f"[FreeCAD] Exportación exitosa a: {output_path}")
-                return True
+                msg_success = f"Exportación exitosa a: {output_path}"
+                print(f"[FreeCAD] {msg_success}")
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=msg_success,
+                    code=code,
+                    output_file=output_path
+                )
             else:
+                error_msg = f"Error: {result.stderr}" if result.stderr else "FreeCAD no generó el archivo de salida"
                 if result.stderr:
-                    print(f"[FreeCAD] Error: {result.stderr}")
-                # Aún devolvemos True porque el .py se generó
-                return True
+                    print(f"[FreeCAD] {error_msg}")
+                # Aún devolvemos éxito parcial porque el .py existe
+                return CodeValidationResult(
+                    success=True,
+                    is_valid=True,
+                    message=f"{error_msg}. El script .py se guardó correctamente.",
+                    code=code,
+                    output_file=temp_py
+                )
                 
+        except subprocess.TimeoutExpired:
+            error_msg = "Tiempo de espera agotado al ejecutar FreeCAD."
+            print(f"[FreeCAD] Error: {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )
         except Exception as e:
-            print(f"[FreeCAD] Excepción al exportar: {str(e)}")
-            return False
+            error_msg = f"Excepción al exportar: {str(e)}"
+            print(f"[FreeCAD] {error_msg}")
+            return CodeValidationResult(
+                success=False,
+                is_valid=False,
+                message=error_msg,
+                code=code
+            )
