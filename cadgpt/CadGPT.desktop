@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CadGPT
+GenericName=Diseño CAD con IA
+Comment=Sistema de Diseño Asistido por Inteligencia Artificial para modelado CAD
+Exec=/bin/bash -c "cd %k && ./iniciar_cadgpt.sh"
+Icon=applications-engineering
+Path=/workspace/cadgpt
+Terminal=true
+StartupNotify=true
+Categories=Graphics;Engineering;Education;
+Keywords=CAD;3D;modeling;AI;design;OpenSCAD;Blender;FreeCAD;
