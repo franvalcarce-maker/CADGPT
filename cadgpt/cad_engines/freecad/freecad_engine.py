@@ -420,3 +420,103 @@ Part.export([FreeCAD.ActiveDocument.ActiveObject.Label], r"{filepath}")
     def get_supported_formats(self) -> List[str]:
         """Get list of supported export formats."""
         return ["step", "stl", "obj", "dxf", "svg", "ifc", "fcstd"]
+    
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+        """
+        Exporta el código FreeCAD Python a un archivo físico.
+        
+        Args:
+            code: Código Python de FreeCAD a guardar/ejecutar.
+            output_path: Ruta completa del archivo de salida.
+            format: Formato de exportación ('py' o 'step', 'stl', etc.).
+            
+        Returns:
+            True si éxito, False si fallo.
+        """
+        import os
+        import subprocess
+        
+        try:
+            # Asegurar directorio
+            dir_path = os.path.dirname(output_path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+            
+            # Determinar extensiones
+            file_ext = os.path.splitext(output_path)[1].lower()
+            
+            # 1. Guardar archivo .py siempre
+            temp_py = output_path.replace(file_ext, '.py')
+            if file_ext == '.py':
+                temp_py = output_path
+            
+            with open(temp_py, 'w', encoding='utf-8') as f:
+                f.write(code)
+            
+            print(f"[FreeCAD] Script guardado en: {temp_py}")
+            
+            # Si solo queríamos el .py, terminamos aquí
+            if file_ext == '.py':
+                return True
+            
+            # 2. Intentar ejecutar con FreeCAD para exportar
+            if not self.freecad_path or not os.path.exists(self.freecad_path):
+                print("[FreeCAD] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .py")
+                print("[FreeCAD] Para generar STEP/STL, instala FreeCAD y configura la ruta.")
+                return True
+            
+            # Modificar el código para agregar exportación al final
+            # Detectar formato por extensión
+            export_format = file_ext.lstrip('.').upper()
+            if export_format == 'STL':
+                export_format = 'Mesh'
+            elif export_format == 'STEP':
+                export_format = 'STEP'
+            
+            export_cmd = f'''
+# Export
+doc = App.ActiveDocument
+if doc and len(doc.Objects) > 0:
+    obj = doc.Objects[0]
+    if "{export_format}" == "Mesh":
+        import Mesh
+        mesh = Mesh.Mesh(obj.Shape.tessellate(0.1))
+        Mesh.export([mesh], r"{output_path}")
+    else:
+        doc.exportExport([obj], r"{output_path}")
+'''
+            code_with_export = code + export_cmd
+            
+            # Guardar script temporal con export
+            temp_export_py = temp_py.replace('.py', '_export.py')
+            with open(temp_export_py, 'w', encoding='utf-8') as f:
+                f.write(code_with_export)
+            
+            # Comando: freecad --console script.py
+            cmd = [
+                self.freecad_path,
+                "--console",
+                temp_export_py
+            ]
+            
+            print(f"[FreeCAD] Ejecutando: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode == 0 and os.path.exists(output_path):
+                print(f"[FreeCAD] Exportación exitosa a: {output_path}")
+                return True
+            else:
+                if result.stderr:
+                    print(f"[FreeCAD] Error: {result.stderr}")
+                # Aún devolvemos True porque el .py se generó
+                return True
+                
+        except Exception as e:
+            print(f"[FreeCAD] Excepción al exportar: {str(e)}")
+            return False

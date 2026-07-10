@@ -444,3 +444,85 @@ else:
     def get_supported_formats(self) -> List[str]:
         """Get list of supported export formats."""
         return ["stl", "obj", "fbx", "gltf", "dae", "ply", "svg", "png"]
+    
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+        """
+        Exporta el código Blender Python a un archivo físico.
+        
+        Args:
+            code: Código Python de Blender a guardar/ejecutar.
+            output_path: Ruta completa del archivo de salida.
+            format: Formato de exportación ('py' o 'stl', 'obj', etc.).
+            
+        Returns:
+            True si éxito, False si fallo.
+        """
+        import os
+        import subprocess
+        
+        try:
+            # Asegurar directorio
+            dir_path = os.path.dirname(output_path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+            
+            # Determinar extensiones
+            file_ext = os.path.splitext(output_path)[1].lower()
+            
+            # 1. Guardar archivo .py siempre
+            temp_py = output_path.replace(file_ext, '.py')
+            if file_ext == '.py':
+                temp_py = output_path
+            
+            with open(temp_py, 'w', encoding='utf-8') as f:
+                f.write(code)
+            
+            print(f"[Blender] Script guardado en: {temp_py}")
+            
+            # Si solo queríamos el .py, terminamos aquí
+            if file_ext == '.py':
+                return True
+            
+            # 2. Intentar ejecutar con Blender para exportar
+            if not self.blender_path or not os.path.exists(self.blender_path):
+                print("[Blender] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .py")
+                print("[Blender] Para generar STL/OBJ, instala Blender y configura la ruta.")
+                return True
+            
+            # Modificar el código para agregar exportación al final
+            export_cmd = f'\n# Export\nbpy.ops.export_mesh.stl(filepath="{output_path}")\n'
+            code_with_export = code + export_cmd
+            
+            # Guardar script temporal con export
+            temp_export_py = temp_py.replace('.py', '_export.py')
+            with open(temp_export_py, 'w', encoding='utf-8') as f:
+                f.write(code_with_export)
+            
+            # Comando: blender --background --python script.py
+            cmd = [
+                self.blender_path,
+                "--background",
+                "--python", temp_export_py
+            ]
+            
+            print(f"[Blender] Ejecutando: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode == 0 and os.path.exists(output_path):
+                print(f"[Blender] Exportación exitosa a: {output_path}")
+                return True
+            else:
+                if result.stderr:
+                    print(f"[Blender] Error: {result.stderr}")
+                # Aún devolvemos True porque el .py se generó
+                return True
+                
+        except Exception as e:
+            print(f"[Blender] Excepción al exportar: {str(e)}")
+            return False

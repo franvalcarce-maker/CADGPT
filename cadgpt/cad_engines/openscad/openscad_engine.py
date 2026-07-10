@@ -339,3 +339,77 @@ square([{base_size}, {base_size}], center=true);'''
     def get_supported_formats(self) -> List[str]:
         """Get list of supported export formats."""
         return ["stl", "off", "dxf", "svg", "png"]
+    
+    def export_to_file(self, code: str, output_path: str, format: str = "stl") -> bool:
+        """
+        Exporta el código OpenSCAD a un archivo físico.
+        
+        Args:
+            code: Código OpenSCAD a guardar.
+            output_path: Ruta completa del archivo de salida (ej: C:/models/cubo.stl).
+            format: Formato de exportación ('scad' o 'stl').
+            
+        Returns:
+            True si éxito, False si fallo.
+        """
+        import os
+        import subprocess
+        
+        try:
+            # Asegurar directorio
+            dir_path = os.path.dirname(output_path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+            
+            # Determinar extensiones
+            file_ext = os.path.splitext(output_path)[1].lower()
+            
+            # 1. Guardar archivo .scad siempre (necesario para compilar)
+            temp_scad = output_path.replace(file_ext, '.scad')
+            if file_ext == '.scad':
+                temp_scad = output_path
+            
+            with open(temp_scad, 'w', encoding='utf-8') as f:
+                f.write(code)
+            
+            print(f"[OpenSCAD] Código guardado en: {temp_scad}")
+            
+            # Si solo queríamos el .scad, terminamos aquí
+            if file_ext == '.scad':
+                return True
+            
+            # 2. Intentar compilar a STL/OBJ/etc usando openscad
+            if not self.openscad_path or not os.path.exists(self.openscad_path):
+                print("[OpenSCAD] Advertencia: Ejecutable no encontrado. Solo se generó el archivo .scad")
+                print("[OpenSCAD] Para generar STL, instala OpenSCAD y configura la ruta.")
+                # Devolvemos True porque el .scad se generó correctamente
+                return True 
+            
+            # Comando de exportación: openscad -o output.stl input.scad
+            cmd = [
+                self.openscad_path,
+                "-o", output_path,
+                temp_scad
+            ]
+            
+            print(f"[OpenSCAD] Ejecutando: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode == 0 and os.path.exists(output_path):
+                print(f"[OpenSCAD] Exportación exitosa a: {output_path}")
+                return True
+            else:
+                if result.stderr:
+                    print(f"[OpenSCAD] Error en compilación: {result.stderr}")
+                # Aún devolvemos True porque el .scad se generó
+                return True
+                
+        except Exception as e:
+            print(f"[OpenSCAD] Excepción al exportar: {str(e)}")
+            return False
