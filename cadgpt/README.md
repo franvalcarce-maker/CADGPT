@@ -84,6 +84,19 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
+## 💻 Ejecutar el Programa
+
+### Método 1: Doble clic (Recomendado para usuarios)
+
+- **Windows**: Haz doble clic en `INICIAR_CADGPT.bat`
+- **Linux/Mac**: Ejecuta `./iniciar_cadgpt.sh`
+
+### Método 2: Línea de comandos
+
+```bash
+python run_cadgpt.py
+```
+
 ### Dependencias Principales
 
 ```txt
