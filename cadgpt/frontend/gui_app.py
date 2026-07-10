@@ -22,6 +22,8 @@ from cad_engines import create_engine
 from core.orchestration.agent_orchestrator import AgentOrchestrator
 from core.llm_interface.local_llm import LocalLLM
 from core.memory.session_memory import SessionMemory
+import json
+import requests
 
 
 class CadGPTApp(ctk.CTk):
@@ -45,6 +47,13 @@ class CadGPTApp(ctk.CTk):
         self.is_processing = False
         self.session_memory = SessionMemory()
         self.orchestrator = None
+        
+        # Configuración de LM Studio
+        self.lm_config_file = Path(__file__).parent.parent / "lm_config.json"
+        self.lm_server_url = "http://localhost:1234/v1"
+        self.lm_model_name = ""
+        self.lm_connected = False
+        self._load_lm_config()
         
         # Inicializar componentes
         self._setup_ui()
@@ -186,6 +195,33 @@ class CadGPTApp(ctk.CTk):
         )
         self.open_folder_btn.grid(row=2, column=0, pady=5, sticky="ew")
         
+        # ===== CONFIGURACIÓN LM STUDIO =====
+        self.lm_label = ctk.CTkLabel(
+            self.sidebar, 
+            text="LM Studio:", 
+            font=ctk.CTkFont(weight="bold")
+        )
+        self.lm_label.grid(row=12, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.lm_status_indicator = ctk.CTkLabel(
+            self.sidebar,
+            text="●",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#e74c3c"  # Rojo por defecto (desconectado)
+        )
+        self.lm_status_indicator.grid(row=12, column=0, padx=240, pady=(20, 5), sticky="w")
+        
+        self.lm_config_btn = ctk.CTkButton(
+            self.btn_frame,
+            text="⚙️ Configurar LM",
+            height=35,
+            command=self._open_lm_config
+        )
+        self.lm_config_btn.grid(row=3, column=0, pady=5, sticky="ew")
+        
+        # Verificar conexión al iniciar
+        self.after(1000, self._check_lm_connection)
+        
         # ===== ESTADO =====
         self.status_label = ctk.CTkLabel(
             self.sidebar,
@@ -193,7 +229,7 @@ class CadGPTApp(ctk.CTk):
             font=ctk.CTkFont(size=12),
             text_color="#2ecc71"
         )
-        self.status_label.grid(row=11, column=0, padx=20, pady=(20, 10), sticky="w")
+        self.status_label.grid(row=13, column=0, padx=20, pady=(20, 10), sticky="w")
         
         # ===== ÁREA PRINCIPAL (DERECHA) =====
         self.main_area = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -475,6 +511,183 @@ class CadGPTApp(ctk.CTk):
             self.chat_display.configure(state="disabled")
             self._add_welcome_message()
             self.session_memory.clear()
+    
+    def _load_lm_config(self):
+        """Cargar configuración de LM Studio desde archivo JSON."""
+        if self.lm_config_file.exists():
+            try:
+                with open(self.lm_config_file, 'r') as f:
+                    config = json.load(f)
+                    self.lm_server_url = config.get('server_url', 'http://localhost:1234/v1')
+                    self.lm_model_name = config.get('model_name', '')
+            except Exception as e:
+                print(f"Error al cargar configuración LM: {e}")
+    
+    def _save_lm_config(self):
+        """Guardar configuración de LM Studio en archivo JSON."""
+        try:
+            config = {
+                'server_url': self.lm_server_url,
+                'model_name': self.lm_model_name
+            }
+            with open(self.lm_config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo guardar la configuración: {e}")
+    
+    def _check_lm_connection(self):
+        """Verificar conexión con el servidor LM Studio."""
+        def check():
+            try:
+                # Endpoint de modelos de LM Studio
+                response = requests.get(f"{self.lm_server_url}/models", timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    models = data.get('data', [])
+                    if models:
+                        self.lm_model_name = models[0].get('id', 'Desconocido')
+                        self.lm_connected = True
+                        self.after(0, lambda: self.lm_status_indicator.configure(text_color="#2ecc71"))  # Verde
+                        self.after(0, lambda: self.status_label.configure(text=f"● LM Conectado: {self.lm_model_name}", text_color="#2ecc71"))
+                    else:
+                        self.lm_connected = False
+                        self.after(0, lambda: self.lm_status_indicator.configure(text_color="#e74c3c"))  # Rojo
+                else:
+                    self.lm_connected = False
+                    self.after(0, lambda: self.lm_status_indicator.configure(text_color="#e74c3c"))
+            except Exception:
+                self.lm_connected = False
+                self.after(0, lambda: self.lm_status_indicator.configure(text_color="#e74c3c"))
+        
+        thread = threading.Thread(target=check)
+        thread.daemon = True
+        thread.start()
+    
+    def _open_lm_config(self):
+        """Abrir ventana de configuración de LM Studio."""
+        config_window = ctk.CTkToplevel(self)
+        config_window.title("Configuración LM Studio")
+        config_window.geometry("500x400")
+        config_window.resizable(False, False)
+        
+        # Centrar ventana
+        config_window.transient(self)
+        config_window.grab_set()
+        
+        # Título
+        title = ctk.CTkLabel(
+            config_window,
+            text="⚙️ Configuración del Servidor LM Studio",
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        title.pack(pady=(20, 10))
+        
+        # Frame de contenido
+        content_frame = ctk.CTkFrame(config_window, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # URL del servidor
+        url_label = ctk.CTkLabel(
+            content_frame,
+            text="URL del Servidor:",
+            font=ctk.CTkFont(weight="bold")
+        )
+        url_label.pack(anchor="w", pady=(10, 5))
+        
+        url_entry = ctk.CTkEntry(
+            content_frame,
+            placeholder_text="http://localhost:1234/v1",
+            width=400
+        )
+        url_entry.pack(fill="x", pady=5)
+        url_entry.insert(0, self.lm_server_url)
+        
+        # Modelo (solo lectura, se detecta automáticamente)
+        model_label = ctk.CTkLabel(
+            content_frame,
+            text="Modelo Detectado:",
+            font=ctk.CTkFont(weight="bold")
+        )
+        model_label.pack(anchor="w", pady=(10, 5))
+        
+        model_entry = ctk.CTkEntry(
+            content_frame,
+            width=400
+        )
+        model_entry.pack(fill="x", pady=5)
+        model_entry.insert(0, self.lm_model_name if self.lm_model_name else "No detectado")
+        model_entry.configure(state="disabled")
+        
+        # Instrucciones
+        info_text = ctk.CTkTextbox(
+            content_frame,
+            height=100,
+            font=ctk.CTkFont(size=11)
+        )
+        info_text.pack(fill="both", expand=True, pady=(10, 5))
+        info_text.insert("0.0", 
+            "Instrucciones:\n"
+            "1. Asegúrate de que LM Studio esté ejecutándose\n"
+            "2. Activa el servidor local en LM Studio (puerto 1234 por defecto)\n"
+            "3. Carga un modelo compatible (ej: Qwythos 9B, Llama3, Mistral)\n"
+            "4. Presiona 'Probar Conexión' para verificar\n"
+            "5. Guarda la configuración para usarla en futuras sesiones"
+        )
+        info_text.configure(state="disabled")
+        
+        # Botones
+        btn_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=(10, 0))
+        
+        def test_connection():
+            test_btn.configure(text="Probando...", state="disabled")
+            self.lm_server_url = url_entry.get()
+            self._check_lm_connection()
+            # Esperar y actualizar
+            def update_after_test():
+                if self.lm_connected:
+                    model_entry.configure(state="normal")
+                    model_entry.delete(0, "end")
+                    model_entry.insert(0, self.lm_model_name)
+                    model_entry.configure(state="disabled")
+                    messagebox.showinfo("Éxito", f"Conexión exitosa!\nModelo: {self.lm_model_name}")
+                else:
+                    messagebox.showerror("Error", "No se pudo conectar al servidor.\nVerifica que LM Studio esté ejecutándose.")
+                test_btn.configure(text="🔄 Probar Conexión", state="normal")
+            
+            config_window.after(3000, update_after_test)
+        
+        test_btn = ctk.CTkButton(
+            btn_frame,
+            text="🔄 Probar Conexión",
+            command=test_connection,
+            fg_color="#3498db"
+        )
+        test_btn.pack(side="left", padx=(0, 10))
+        
+        def save_config():
+            self.lm_server_url = url_entry.get()
+            self._save_lm_config()
+            self._check_lm_connection()
+            config_window.destroy()
+            messagebox.showinfo("Guardado", "Configuración guardada exitosamente!")
+        
+        save_btn = ctk.CTkButton(
+            btn_frame,
+            text="💾 Guardar",
+            command=save_config,
+            fg_color="#2ecc71"
+        )
+        save_btn.pack(side="right")
+        
+        # Cancel button
+        cancel_btn = ctk.CTkButton(
+            content_frame,
+            text="Cancelar",
+            command=config_window.destroy,
+            fg_color="#95a5a6"
+        )
+        cancel_btn.pack(pady=(10, 0))
 
 
 def main():
