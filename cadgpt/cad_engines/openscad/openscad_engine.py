@@ -32,8 +32,32 @@ class OpenSCADEngine(BaseCADEngine):
         self.openscad_path = openscad_path or self._find_openscad()
     
     def _find_openscad(self) -> Optional[str]:
-        """Try to find OpenSCAD executable in system PATH."""
+        """Try to find OpenSCAD executable in system PATH or config file."""
         import shutil
+        
+        # First, try to load from config.json
+        config_file = Path(__file__).parent.parent.parent / "config.json"
+        if config_file.exists():
+            try:
+                import json
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    if "openscad_path" in config and os.path.exists(config["openscad_path"]):
+                        return config["openscad_path"]
+            except Exception:
+                pass  # Ignore config errors, continue with other methods
+        
+        # Second, try common Windows paths
+        common_paths = [
+            r"C:\Program Files\OpenSCAD\openscad.exe",
+            r"C:\Program Files (x86)\OpenSCAD\openscad.exe",
+            os.path.expanduser(r"~\AppData\Local\Programs\OpenSCAD\openscad.exe")
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        # Finally, try system PATH
         return shutil.which("openscad")
     
     def generate_code(

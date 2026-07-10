@@ -195,6 +195,16 @@ class CadGPTApp(ctk.CTk):
         )
         self.open_folder_btn.grid(row=2, column=0, pady=5, sticky="ew")
         
+        # Botón de Configuración de Rutas CAD
+        self.cad_config_btn = ctk.CTkButton(
+            self.btn_frame,
+            text="🔧 Rutas CAD",
+            height=35,
+            command=self._open_cad_config,
+            fg_color="#9b59b6"
+        )
+        self.cad_config_btn.grid(row=3, column=0, pady=5, sticky="ew")
+        
         # ===== CONFIGURACIÓN LM STUDIO =====
         self.lm_label = ctk.CTkLabel(
             self.sidebar, 
@@ -217,7 +227,7 @@ class CadGPTApp(ctk.CTk):
             height=35,
             command=self._open_lm_config
         )
-        self.lm_config_btn.grid(row=3, column=0, pady=5, sticky="ew")
+        self.lm_config_btn.grid(row=4, column=0, pady=5, sticky="ew")
         
         # Verificar conexión al iniciar
         self.after(1000, self._check_lm_connection)
@@ -688,6 +698,208 @@ class CadGPTApp(ctk.CTk):
             fg_color="#95a5a6"
         )
         cancel_btn.pack(pady=(10, 0))
+
+    def _open_cad_config(self):
+        """Abrir ventana de configuración de rutas CAD (OpenSCAD, Blender, FreeCAD)."""
+        config_window = ctk.CTkToplevel(self)
+        config_window.title("Configuración de Rutas CAD")
+        config_window.geometry("600x500")
+        config_window.resizable(False, False)
+        
+        # Centrar ventana
+        config_window.transient(self)
+        config_window.grab_set()
+        
+        # Título
+        title = ctk.CTkLabel(
+            config_window,
+            text="🔧 Configuración de Rutas de Motores CAD",
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        title.pack(pady=(20, 10))
+        
+        # Frame de contenido con scroll
+        content_frame = ctk.CTkScrollableFrame(config_window)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # ===== OPENSCAD =====
+        openscad_frame = ctk.CTkFrame(content_frame)
+        openscad_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            openscad_frame,
+            text="🔷 OpenSCAD",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#3498db"
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        ctk.CTkLabel(
+            openscad_frame,
+            text="Ruta del ejecutable openscad.exe:",
+            font=ctk.CTkFont(size=11)
+        ).pack(anchor="w", padx=10, pady=(5, 0))
+        
+        self.openscad_path_var = ctk.StringVar(value=self._get_default_openscad_path())
+        openscad_entry = ctk.CTkEntry(
+            openscad_frame,
+            textvariable=self.openscad_path_var,
+            width=500
+        )
+        openscad_entry.pack(fill="x", padx=10, pady=5)
+        
+        def browse_openscad():
+            filepath = filedialog.askopenfilename(
+                title="Buscar openscad.exe",
+                filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
+            )
+            if filepath:
+                self.openscad_path_var.set(filepath)
+        
+        ctk.CTkButton(
+            openscad_frame,
+            text="📂 Buscar archivo",
+            command=browse_openscad,
+            width=150
+        ).pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # ===== BLENDER =====
+        blender_frame = ctk.CTkFrame(content_frame)
+        blender_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            blender_frame,
+            text="🟠 Blender",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#e67e22"
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        ctk.CTkLabel(
+            blender_frame,
+            text="Ruta del ejecutable blender.exe (opcional):",
+            font=ctk.CTkFont(size=11)
+        ).pack(anchor="w", padx=10, pady=(5, 0))
+        
+        self.blender_path_var = ctk.StringVar(value="")
+        blender_entry = ctk.CTkEntry(
+            blender_frame,
+            textvariable=self.blender_path_var,
+            width=500
+        )
+        blender_entry.pack(fill="x", padx=10, pady=5)
+        
+        def browse_blender():
+            filepath = filedialog.askopenfilename(
+                title="Buscar blender.exe",
+                filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
+            )
+            if filepath:
+                self.blender_path_var.set(filepath)
+        
+        ctk.CTkButton(
+            blender_frame,
+            text="📂 Buscar archivo",
+            command=browse_blender,
+            width=150
+        ).pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # ===== FREECAD =====
+        freecad_frame = ctk.CTkFrame(content_frame)
+        freecad_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            freecad_frame,
+            text="🔩 FreeCAD",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#27ae60"
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        ctk.CTkLabel(
+            freecad_frame,
+            text="Ruta del ejecutable FreeCAD.exe (opcional):",
+            font=ctk.CTkFont(size=11)
+        ).pack(anchor="w", padx=10, pady=(5, 0))
+        
+        self.freecad_path_var = ctk.StringVar(value="")
+        freecad_entry = ctk.CTkEntry(
+            freecad_frame,
+            textvariable=self.freecad_path_var,
+            width=500
+        )
+        freecad_entry.pack(fill="x", padx=10, pady=5)
+        
+        def browse_freecad():
+            filepath = filedialog.askopenfilename(
+                title="Buscar FreeCAD.exe",
+                filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
+            )
+            if filepath:
+                self.freecad_path_var.set(filepath)
+        
+        ctk.CTkButton(
+            freecad_frame,
+            text="📂 Buscar archivo",
+            command=browse_freecad,
+            width=150
+        ).pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Botones de acción
+        btn_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=20)
+        
+        def save_cad_config():
+            # Guardar en config.json
+            config_file = Path(__file__).parent.parent / "config.json"
+            config_data = {}
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            
+            if self.openscad_path_var.get():
+                config_data["openscad_path"] = self.openscad_path_var.get()
+            if self.blender_path_var.get():
+                config_data["blender_path"] = self.blender_path_var.get()
+            if self.freecad_path_var.get():
+                config_data["freecad_path"] = self.freecad_path_var.get()
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4, ensure_ascii=False)
+            
+            messagebox.showinfo(
+                "Guardado", 
+                "Configuración guardada exitosamente!\n\n"
+                "Reinicia el programa para aplicar los cambios."
+            )
+            config_window.destroy()
+        
+        ctk.CTkButton(
+            btn_frame,
+            text="💾 Guardar Configuración",
+            command=save_cad_config,
+            fg_color="#2ecc71",
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(side="left")
+        
+        ctk.CTkButton(
+            btn_frame,
+            text="❌ Cancelar",
+            command=config_window.destroy,
+            fg_color="#95a5a6",
+            height=40
+        ).pack(side="right", padx=10)
+    
+    def _get_default_openscad_path(self):
+        """Obtener ruta por defecto de OpenSCAD en Windows."""
+        default_paths = [
+            r"C:\Program Files\OpenSCAD\openscad.exe",
+            r"C:\Program Files (x86)\OpenSCAD\openscad.exe",
+            os.path.expanduser(r"~\AppData\Local\Programs\OpenSCAD\openscad.exe")
+        ]
+        for path in default_paths:
+            if os.path.exists(path):
+                return path
+        return ""
 
 
 def main():
