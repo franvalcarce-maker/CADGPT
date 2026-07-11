@@ -26,7 +26,7 @@ def parse_natural_language(prompt: str) -> dict:
     Soporta comandos básicos en español.
     """
     prompt_lower = prompt.lower()
-    
+
     # Detectar forma
     shape = "cube"  # default
     if "cubo" in prompt_lower or "cube" in prompt_lower:
@@ -41,18 +41,18 @@ def parse_natural_language(prompt: str) -> dict:
         shape = "torus"
     elif "piramide" in prompt_lower or "pyramid" in prompt_lower:
         shape = "pyramid"
-    
+
     # Extraer dimensiones numéricas
     numbers = re.findall(r'(\d+(?:\.\d+)?)\s*(?:mm|cm|m|metros|milímetros|centímetros)?', prompt_lower)
     numbers = [float(n) for n in numbers]
-    
+
     # Detectar operación
     operation = None
     if "hueco" in prompt_lower or "hollow" in prompt_lower:
         operation = "hollow"
     elif "centrado" in prompt_lower or "centered" in prompt_lower:
         operation = "centered"
-    
+
     # Construir parámetros según la forma
     parameters = {}
     if shape == "cube":
@@ -85,7 +85,7 @@ def parse_natural_language(prompt: str) -> dict:
             parameters["base_size"] = numbers[0]
         if len(numbers) >= 2:
             parameters["height"] = numbers[1]
-    
+
     # Valores por defecto si no se detectaron
     if not parameters:
         if shape == "cube":
@@ -94,7 +94,7 @@ def parse_natural_language(prompt: str) -> dict:
             parameters = {"radius": 50.0}
         elif shape == "cylinder":
             parameters = {"radius": 25.0, "height": 100.0}
-    
+
     return {
         "shape": shape,
         "parameters": parameters,
@@ -104,66 +104,66 @@ def parse_natural_language(prompt: str) -> dict:
 def test_openscad():
     """Prueba el motor OpenSCAD"""
     print_separator("PRUEBA 1: Motor OpenSCAD")
-    
+
     engine = create_engine("openscad")
     prompt = "Genera un cubo hueco de 100 mm de lado y 5 mm de espesor"
-    
+
     print(f"🗣️  Prompt: '{prompt}'")
     print("⚙️  Generando código...")
-    
+
     # Parsear lenguaje natural
     parsed = parse_natural_language(prompt)
     print(f"   Forma detectada: {parsed['shape']}")
     print(f"   Parámetros: {parsed['parameters']}")
     print(f"   Operación: {parsed['operation']}")
-    
+
     # Generar código
     code = engine.generate_code(
         shape=parsed['shape'],
         parameters=parsed['parameters'],
         operation=parsed['operation']
     )
-    
+
     print("\n📝 Código OpenSCAD generado:")
     print("-" * 40)
     print(code)
     print("-" * 40)
-    
+
     # Validar sintaxis
     validation = engine.validate_code(code)
     if validation.is_valid:
         print("✅ Validación Sintáctica: ÉXITO")
     else:
         print(f"❌ Validación Sintáctica: FALLÓ - {validation.errors}")
-    
+
     # Analizar geometría (simulado)
     analysis = engine.analyze_mesh(code)
     print(f"📊 Análisis Geométrico: Vértices={analysis.vertices}, Caras={analysis.faces}")
     print(f"   - Volumen estimado: {analysis.volume:.2f} mm³")
     print(f"   - ¿Manifold?: {analysis.is_manifold}")
-    
+
     return code
 
 def test_blender():
     """Prueba el motor Blender"""
     print_separator("PRUEBA 2: Motor Blender (Python API)")
-    
+
     engine = create_engine("blender")
     prompt = "Crea una esfera de radio 2 metros con material metálico"
-    
+
     print(f"🗣️  Prompt: '{prompt}'")
     print("⚙️  Generando script Python para Blender...")
-    
+
     # Parsear lenguaje natural
     parsed = parse_natural_language(prompt)
     print(f"   Forma detectada: {parsed['shape']}")
     print(f"   Parámetros: {parsed['parameters']}")
-    
+
     code = engine.generate_code(
         shape=parsed['shape'],
         parameters=parsed['parameters']
     )
-    
+
     print("\n📝 Script Blender generado:")
     print("-" * 40)
     # Mostrar solo las primeras 15 líneas para no saturar
@@ -173,35 +173,35 @@ def test_blender():
     if len(lines) > 15:
         print(f"... ({len(lines)-15} líneas más)")
     print("-" * 40)
-    
+
     validation = engine.validate_code(code)
     if validation.is_valid:
         print("✅ Validación Sintáctica: ÉXITO")
     else:
         print(f"❌ Validación Sintáctica: FALLÓ - {validation.errors}")
-    
+
     return code
 
 def test_freecad():
     """Prueba el motor FreeCAD"""
     print_separator("PRUEBA 3: Motor FreeCAD (Python API)")
-    
+
     engine = create_engine("freecad")
     prompt = "Diseña un cilindro de 50mm de diámetro y 100mm de altura con un chaflán de 2mm"
-    
+
     print(f"🗣️  Prompt: '{prompt}'")
     print("⚙️  Generando script Python para FreeCAD...")
-    
+
     # Parsear lenguaje natural
     parsed = parse_natural_language(prompt)
     print(f"   Forma detectada: {parsed['shape']}")
     print(f"   Parámetros: {parsed['parameters']}")
-    
+
     code = engine.generate_code(
         shape=parsed['shape'],
         parameters=parsed['parameters']
     )
-    
+
     print("\n📝 Script FreeCAD generado:")
     print("-" * 40)
     lines = code.split('\n')
@@ -210,7 +210,7 @@ def test_freecad():
     if len(lines) > 15:
         print(f"... ({len(lines)-15} líneas más)")
     print("-" * 40)
-    
+
     validation = engine.validate_code(code)
     if validation.is_valid:
         print("✅ Validación Sintáctica: ÉXITO")
@@ -220,12 +220,12 @@ def test_freecad():
 def test_orchestrator():
     """Prueba el orquestador de agentes"""
     print_separator("PRUEBA 4: Orquestador de Agentes (Flujo Completo)")
-    
+
     orchestrator = AgentOrchestrator(default_engine="openscad")
-    
+
     prompt = "Genera una pirámide de base cuadrada de 20cm de lado y 30cm de altura"
     print(f"🗣️  Prompt: '{prompt}'")
-    
+
     try:
         # El orquestador usa LLM si está disponible, si no usa parsing rule-based
         result = orchestrator.process_request(prompt)
@@ -239,20 +239,20 @@ def test_orchestrator():
 if __name__ == "__main__":
     print("\n🚀 INICIANDO DEMO CADGPT - FASE 2")
     print("Probando generación de código para OpenSCAD, Blender y FreeCAD...\n")
-    
+
     try:
         # Ejecutar pruebas
         code_openscad = test_openscad()
         test_blender()
         test_freecad()
         test_orchestrator()
-        
+
         print_separator("RESUMEN DE PRUEBAS")
         print("✅ Todos los motores generaron código válido sintácticamente.")
         print("✅ La arquitectura modular funciona correctamente.")
         print("\n💡 Nota: Para obtener archivos STL/STEP reales, ejecuta los scripts")
         print("   generados en tu instalación local de OpenSCAD, Blender o FreeCAD.")
-        
+
     except Exception as e:
         print(f"\n❌ Error durante la prueba: {e}")
         import traceback

@@ -12,10 +12,10 @@ from .base_llm import BaseLLM, LLMResponse
 class LocalLLM(BaseLLM):
     """
     Local LLM interface compatible with LM Studio and Ollama APIs.
-    
+
     Supports OpenAI-compatible API endpoints running locally.
     """
-    
+
     def __init__(
         self,
         base_url: str = "http://localhost:1234/v1",
@@ -26,7 +26,7 @@ class LocalLLM(BaseLLM):
     ):
         """
         Initialize the Local LLM interface.
-        
+
         Args:
             base_url: Base URL of the local LLM server
             model_name: Name of the model to use
@@ -42,7 +42,7 @@ class LocalLLM(BaseLLM):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}" if api_key else ""
         }
-    
+
     def generate(
         self,
         prompt: str,
@@ -53,22 +53,31 @@ class LocalLLM(BaseLLM):
     ) -> LLMResponse:
         """
         Generate a response from the local LLM.
-        
+
         Args:
             prompt: Input prompt text
             temperature: Sampling temperature (0.0-2.0)
             max_tokens: Maximum tokens to generate
             top_p: Nucleus sampling parameter
             **kwargs: Additional OpenAI-compatible parameters
-            
+
         Returns:
             LLMResponse object with generated content
         """
         endpoint = f"{self.base_url}/chat/completions"
-        
+
+        # Instrucciones de formato para la IA generadora de código 3D
+        system_instructions = (
+            "Instrucciones de formato: solo entrega el código fuente, "
+            "sin explicaciones, sin razonamiento paso a paso, "
+            "sin introducciones ni conclusiones. "
+            "Formato de salida: bloque de código puro."
+        )
+
         payload = {
             "model": self.model_name,
             "messages": [
+                {"role": "system", "content": system_instructions},
                 {"role": "user", "content": prompt}
             ],
             "temperature": temperature,
@@ -76,7 +85,7 @@ class LocalLLM(BaseLLM):
             "top_p": top_p,
             **kwargs
         }
-        
+
         try:
             response = requests.post(
                 endpoint,
@@ -85,10 +94,10 @@ class LocalLLM(BaseLLM):
                 timeout=self.timeout
             )
             response.raise_for_status()
-            
+
             data = response.json()
             choice = data["choices"][0]
-            
+
             return LLMResponse(
                 content=choice["message"]["content"],
                 model=data.get("model", self.model_name),
@@ -96,7 +105,7 @@ class LocalLLM(BaseLLM):
                 finish_reason=choice.get("finish_reason"),
                 metadata={"raw_response": data}
             )
-            
+
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
                 f"Cannot connect to LLM server at {self.base_url}. "
@@ -106,7 +115,7 @@ class LocalLLM(BaseLLM):
             raise TimeoutError(f"Request timed out after {self.timeout} seconds")
         except Exception as e:
             raise RuntimeError(f"LLM request failed: {str(e)}")
-    
+
     def generate_streaming(
         self,
         prompt: str,
@@ -116,21 +125,30 @@ class LocalLLM(BaseLLM):
     ) -> Generator[str, None, None]:
         """
         Generate a streaming response from the local LLM.
-        
+
         Args:
             prompt: Input prompt text
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             **kwargs: Additional parameters
-            
+
         Yields:
             Chunks of generated content
         """
         endpoint = f"{self.base_url}/chat/completions"
-        
+
+        # Instrucciones de formato para la IA generadora de código 3D
+        system_instructions = (
+            "Instrucciones de formato: solo entrega el código fuente, "
+            "sin explicaciones, sin razonamiento paso a paso, "
+            "sin introducciones ni conclusiones. "
+            "Formato de salida: bloque de código puro."
+        )
+
         payload = {
             "model": self.model_name,
             "messages": [
+                {"role": "system", "content": system_instructions},
                 {"role": "user", "content": prompt}
             ],
             "temperature": temperature,
@@ -138,7 +156,7 @@ class LocalLLM(BaseLLM):
             "stream": True,
             **kwargs
         }
-        
+
         try:
             response = requests.post(
                 endpoint,
@@ -148,7 +166,7 @@ class LocalLLM(BaseLLM):
                 stream=True
             )
             response.raise_for_status()
-            
+
             for line in response.iter_lines():
                 if line:
                     line_str = line.decode('utf-8')
@@ -166,18 +184,18 @@ class LocalLLM(BaseLLM):
                                     yield content
                         except json.JSONDecodeError:
                             continue
-                            
+
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
                 f"Cannot connect to LLM server at {self.base_url}"
             )
         except Exception as e:
             raise RuntimeError(f"Streaming request failed: {str(e)}")
-    
+
     def health_check(self) -> bool:
         """
         Check if the LLM server is available.
-        
+
         Returns:
             True if server is reachable, False otherwise
         """
@@ -190,11 +208,11 @@ class LocalLLM(BaseLLM):
             return response.status_code == 200
         except:
             return False
-    
+
     def list_models(self) -> List[str]:
         """
         List available models on the server.
-        
+
         Returns:
             List of model names
         """

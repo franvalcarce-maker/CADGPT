@@ -28,7 +28,7 @@ def get_user_choice():
     print("2. Blender (Python API)")
     print("3. FreeCAD (Part Workbench)")
     print("4. Salir")
-    
+
     while True:
         choice = input("\nOpción [1-4]: ").strip()
         if choice in ['1', '2', '3', '4']:
@@ -37,7 +37,7 @@ def get_user_choice():
 
 def main():
     print_banner()
-    
+
     # Inicializar orquestador
     try:
         orchestrator = AgentOrchestrator()
@@ -49,20 +49,20 @@ def main():
 
     while True:
         choice = get_user_choice()
-        
+
         if choice == '4':
             print("\n👋 Saliendo de CadGPT. ¡Hasta luego!")
             break
-        
+
         engine_map = {
             '1': 'openscad',
             '2': 'blender',
             '3': 'freecad'
         }
-        
+
         engine_name = engine_map[choice]
         print(f"\n🔧 Iniciando motor: {engine_name.upper()}...")
-        
+
         try:
             engine = create_engine(engine_name)
             print(f"✓ Motor {engine_name} listo.")
@@ -81,47 +81,47 @@ def main():
         else:  # freecad
             print("   - 'Diseña una caja de 100x50x30 mm'")
             print("   - 'Crea un tubo de 20 mm de diámetro'")
-        
+
         prompt = input("\n📝 Tu instrucción: ").strip()
-        
+
         if not prompt:
             print("⚠ Instrucción vacía. Inténtalo de nuevo.")
             continue
-            
+
         print("\n⏳ Procesando solicitud...")
-        
+
         try:
             # Simular proceso de generación (en fase futura se conectará al LLM real)
             # Por ahora usamos el parser interno del motor para demo
             result = engine.generate_code(prompt)
-            
+
             if result and 'code' in result:
                 print("\n✅ ¡Código generado exitosamente!")
                 print("-" * 40)
                 print(result['code'])
                 print("-" * 40)
-                
+
                 # Validar
                 if 'validation' in result:
                     status = "✅ VÁLIDO" if result['validation']['is_valid'] else "❌ INVÁLIDO"
                     print(f"\n🛡️ Validación: {status}")
                     if not result['validation']['is_valid']:
                         print(f"   Errores: {result['validation'].get('errors', 'Desconocido')}")
-                
+
                 # Preguntar si quiere exportar
                 save_choice = input("\n💾 ¿Guardar archivo? (s/n): ").strip().lower()
                 if save_choice == 's':
                     filename = input("Nombre del archivo (sin extensión): ").strip() or "modelo_cadgpt"
-                    
+
                     # Determinar extensión por defecto
                     ext_map = {'openscad': '.scad', 'blender': '.py', 'freecad': '.py'}
                     full_path = ROOT_DIR / "output" / f"{filename}{ext_map[engine_name]}"
-                    
+
                     # Guardar código
                     with open(full_path, 'w', encoding='utf-8') as f:
                         f.write(result['code'])
                     print(f"💾 Archivo guardado en: {full_path}")
-                    
+
                     # Intentar exportar a STL si el motor lo soporta y está configurado
                     if hasattr(engine, 'export_to_stl'):
                         stl_path = ROOT_DIR / "output" / f"{filename}.stl"
@@ -136,7 +136,7 @@ def main():
                     print("⏭️ Archivo no guardado.")
             else:
                 print("❌ No se pudo generar el código. Verifica la instrucción.")
-                
+
         except Exception as e:
             print(f"❌ Error durante el procesamiento: {e}")
             import traceback

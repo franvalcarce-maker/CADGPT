@@ -30,13 +30,13 @@ def consultar_qwen_cadquery(prompt_usuario):
         "DO NOT write any text, greetings, or explanations. "
         "ONLY output valid Python code."
     )
-    
+
     payload = {
         "model": MODELO,
         "messages": [
             {"role": "system", "content": system_instruction},
             {
-                "role": "user", 
+                "role": "user",
                 "content": (
                     f"Generate a complete CadQuery python script for: '{prompt_usuario}'. Must start with 'import cadquery as cq' and end with 'result = ...'. Write the full script."
                 )
@@ -53,70 +53,6 @@ def consultar_qwen_cadquery(prompt_usuario):
         return code_match.group(1).strip() if code_match else raw_text.strip()
     except Exception as e:
         return f"# Error de conexión: {e}"
-
-# --- CAPTURA DEL INPUT DEL USUARIO (PROCESAMIENTO INMEDIATO) ---
-# Al colocar esto antes de renderizar las columnas, forzamos a Streamlit a actualizar la pantalla al instante
-if prompt_usuario := st.chat_input("Ej: Haceme una silla con cuatro patas cilíndricas"):
-    # 1. Registrar inmediatamente el mensaje del usuario
-    st.session_state.chat_history.append({"role": "user", "message": prompt_usuario})
-    
-    # 2. Consultar al backend de Qwen
-# --- ESTO VA DONDE PROCESAS LA RESPUESTA DE LA IA ---
-if codigo_generado:
-    # 1. Mostrar el código generado
-    st.chat_message("assistant").code(codigo_generado, language="python")
-    
-    # 2. EL MOTOR DE CONSTRUCCIÓN: Esto ejecuta el código realmente
-    st.write("⚙️ Construyendo el modelo 3D...")
-    try:
-        # Creamos un entorno seguro para ejecutar el código de la IA
-        contexto_ejecucion = {"cq": cq}
-        # Ejecutamos el código generado por la IA
-        exec(codigo_generado, contexto_ejecucion)
-        
-        # Si la IA definió 'result', lo exportamos a STL
-        if "result" in contexto_ejecucion:
-            objeto_3d = contexto_ejecucion["result"]
-            # Exportamos a un archivo físico
-            cq.exporters.export(objeto_3d, "modelo_generado.stl")
-            
-            # 3. Mostrar botón de descarga
-            with open("modelo_generado.stl", "rb") as f:
-                st.download_button(
-                    label="📥 Descargar modelo generado (.stl)",
-                    data=f,
-                    file_name="modelo_generado.stl",
-                    mime="application/octet-stream"
-                )
-            st.success("¡Modelo listo para descargar!")
-        else:
-            st.error("El código no definió la variable 'result'.")
-    except Exception as e:
-        
-        st.error(f"Error al compilar el modelo 3D: {e}")
-        # 4. Registrar la respuesta del asistente en el chat
-        st.session_state.chat_history.append({
-            "role": "assistant", 
-            "message": "¡Topología calculada con éxito! Compilando archivo STL...",
-            "code": codigo_generado
-        })
-        
-        # 5. Agregar el objeto creado de forma dinámica al panel izquierdo
-        nuevo_indice = len(st.session_state.historial) + 1
-        st.session_state.historial.append({
-            "nombre": f"Objeto_{nuevo_indice:02d}.stl",
-            "prompt": prompt_usuario,
-            "preview": "📐"
-        })
-    else:
-        st.session_state.chat_history.append({
-            "role": "assistant", 
-            "message": f"Hubo un problema al conectar con el servidor de la IA. Asegúrate de que LM Studio esté encendido."
-        })
-    
-    # 6. Forzar redibujado con los nuevos datos cargados
-    st.rerun()
-
 
 # --- RENDERIZADO VISUAL DE LA INTERFAZ ---
 st.title("🤖 CadGPT — Generative AI 3D Studio")
@@ -143,9 +79,9 @@ with col_visor:
     st.subheader("👁️ Visor 3D Interactivo")
     with st.container(border=True):
         st.info("Renderizando espacio topológico... Listo para recibir datos de malla.")
-        st.image("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop", 
+        st.image("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop",
                  caption="[Vista de Malla Tridimensional Activa]", use_container_width=True)
-        
+
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             st.button("📥 Descargar Archivo .STL", use_container_width=True)
@@ -155,7 +91,7 @@ with col_visor:
 # Panel 3: El chat interactivo con el historial visible
 with col_chat:
     st.subheader("💬 Asistente de Diseño")
-    
+
     # Caja contenedora del chat con tamaño fijo y scroll automático
     with st.container(height=500, border=True):
         if not st.session_state.chat_history:
@@ -166,3 +102,72 @@ with col_chat:
                     st.write(chat["message"])
                     if "code" in chat:
                         st.code(chat["code"], language="python")
+
+# --- CAPTURA DEL INPUT DEL USUARIO (PROCESAMIENTO INMEDIATO) ---
+if prompt_usuario := st.chat_input("Ej: Haceme una silla con cuatro patas cilíndricas"):
+    # 1. Registrar inmediatamente el mensaje del usuario
+    st.session_state.chat_history.append({"role": "user", "message": prompt_usuario})
+
+    # 2. Consultar al backend de Qwen
+    codigo_generado = consultar_qwen_cadquery(prompt_usuario)
+
+    # 3. Procesar la respuesta
+    if codigo_generado and not codigo_generado.startswith("# Error"):
+        # 1. Mostrar el código generado
+        st.chat_message("assistant").code(codigo_generado, language="python")
+
+        # 2. EL MOTOR DE CONSTRUCCIÓN: Esto ejecuta el código realmente
+        st.write("⚙️ Construyendo el modelo 3D...")
+        try:
+            # Creamos un entorno seguro para ejecutar el código de la IA
+            contexto_ejecucion = {"cq": cq}
+            # Ejecutamos el código generado por la IA
+            exec(codigo_generado, contexto_ejecucion)
+
+            # Si la IA definió 'result', lo exportamos a STL
+            if "result" in contexto_ejecucion:
+                objeto_3d = contexto_ejecucion["result"]
+                # Exportamos a un archivo físico
+                cq.exporters.export(objeto_3d, "modelo_generado.stl")
+
+                # 3. Mostrar botón de descarga
+                with open("modelo_generado.stl", "rb") as f:
+                    st.download_button(
+                        label="📥 Descargar modelo generado (.stl)",
+                        data=f,
+                        file_name="modelo_generado.stl",
+                        mime="application/octet-stream"
+                    )
+                st.success("¡Modelo listo para descargar!")
+                
+                # 4. Registrar la respuesta del asistente en el chat
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "message": "¡Topología calculada con éxito! Compilando archivo STL...",
+                    "code": codigo_generado
+                })
+
+                # 5. Agregar el objeto creado de forma dinámica al panel izquierdo
+                nuevo_indice = len(st.session_state.historial) + 1
+                st.session_state.historial.append({
+                    "nombre": f"Objeto_{nuevo_indice:02d}.stl",
+                    "prompt": prompt_usuario,
+                    "preview": "📐"
+                })
+            else:
+                st.error("El código no definió la variable 'result'.")
+        except Exception as e:
+            st.error(f"Error al compilar el modelo 3D: {e}")
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "message": f"Error al compilar: {e}",
+                "code": codigo_generado
+            })
+    else:
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "message": "Hubo un problema al conectar con el servidor de la IA. Asegúrate de que LM Studio esté encendido."
+        })
+
+    # 6. Forzar redibujado con los nuevos datos cargados
+    st.rerun()
