@@ -1,5 +1,0 @@
-$env:QWEN_MODEL="openai:qwen/qwen2.5-coder-14b"
-$env:OPENAI_API_KEY="any-string"
-$env:OPENAI_BASE_URL="http://127.0.0.1:1234/v1"
-$env:QWEN_TIMEOUT="0"
-qwen
